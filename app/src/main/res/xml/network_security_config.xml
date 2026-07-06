@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.193.95.80</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">192.168.0.0/16</domain>
+    </domain-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.open-meteo.com</domain>
+        <domain includeSubdomains="true">restapi.amap.com</domain>
+        <domain includeSubdomains="true">apis.tianapi.com</domain>
+        <domain includeSubdomains="true">newsapi.org</domain>
+        <domain includeSubdomains="true">fanyi-api.baidu.com</domain>
+        <domain includeSubdomains="true">api.frankfurter.dev</domain>
+    </domain-config>
+</network-security-config>
+
