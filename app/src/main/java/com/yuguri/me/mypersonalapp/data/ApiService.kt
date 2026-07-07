@@ -1,5 +1,6 @@
 package com.yuguri.me.mypersonalapp.data.api
 
+import com.yuguri.me.mypersonalapp.BuildConfig
 import com.yuguri.me.mypersonalapp.data.model.*
 import retrofit2.http.*
 
@@ -229,16 +230,15 @@ data class ApiMsgResponse(
 
 // ========== API Keys ==========
 object API_KEYS {
-    const val MOOD_FEED = "84df859304c9f24d81428f5b5d4f5035"
-    const val TIANJU = "c6e5aa8cb90829e23d3a9bd85174bf35"
-    const val CAR = "84df859304c9f24d81428f5b5d4f5035"
-    const val NEWS = "fdb836fb63884a4f8a21dcb03a21f815"
-    const val BAIDU_APP_ID = "20220327001144560"
-    const val BAIDU_AUTH_TOKEN = "7Yny_d8s9dvs3um9ef2qqh3d0"
-    const val AMAP_KEY = "6ef14c625aebea4f12491adaac72b8f0"
+    const val MOOD_FEED = BuildConfig.MOOD_FEED
+    const val TIANJU = BuildConfig.TIANJU
+    const val CAR = BuildConfig.CAR
+    const val NEWS = BuildConfig.NEWS
+    const val BAIDU_APP_ID = BuildConfig.BAIDU_APP_ID
+    const val BAIDU_AUTH_TOKEN = BuildConfig.BAIDU_AUTH_TOKEN
+    const val AMAP_KEY = BuildConfig.AMAP_KEY
 
-    // 你自己的服务器地址（改成你的实际域名）
-    const val USER_BASE_URL = "http://10.193.95.80:5000"
+    const val USER_BASE_URL = BuildConfig.USER_BASE_URL
 }
 
 

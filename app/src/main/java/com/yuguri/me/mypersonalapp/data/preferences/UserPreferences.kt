@@ -15,6 +15,7 @@ class UserPreferences(private val context: Context) {
         val USER_ID = intPreferencesKey("user_id")
         val USER_NAME = stringPreferencesKey("user_name")
         val NICKNAME = stringPreferencesKey("nickname")
+        val TOKEN = stringPreferencesKey("token")
         val NEWS_VIEW_COUNT = intPreferencesKey("news_view_count")
         val NEWS_FAVORITE_COUNT = intPreferencesKey("news_favorite_count")
         val AVATAR_TIMESTAMP = longPreferencesKey("avatar_timestamp")
@@ -27,6 +28,7 @@ class UserPreferences(private val context: Context) {
     val userId: Flow<Int> = context.dataStore.data.map { it[USER_ID] ?: 0 }
     val userName: Flow<String> = context.dataStore.data.map { it[USER_NAME] ?: "User" }
     val nickname: Flow<String> = context.dataStore.data.map { it[NICKNAME] ?: "User" }
+    val token: Flow<String?> = context.dataStore.data.map { it[TOKEN] }
     val newsViewCount: Flow<Int> = context.dataStore.data.map { it[NEWS_VIEW_COUNT] ?: 0 }
     val newsFavoriteCount: Flow<Int> = context.dataStore.data.map { it[NEWS_FAVORITE_COUNT] ?: 0 }
     val cityName: Flow<String> = context.dataStore.data.map { it[CITY_NAME] ?: "" }
@@ -44,6 +46,16 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setNickname(name: String) {
         context.dataStore.edit { it[NICKNAME] = name }
+    }
+
+    suspend fun setToken(token: String?) {
+        context.dataStore.edit {
+            if (token != null) {
+                it[TOKEN] = token
+            } else {
+                it.remove(TOKEN)
+            }
+        }
     }
 
     suspend fun incrementNewsView() {

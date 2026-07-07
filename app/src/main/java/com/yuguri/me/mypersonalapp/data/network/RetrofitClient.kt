@@ -31,6 +31,32 @@ object RetrofitClient {
             .create(service)
     }
 
+    fun <T> createWithToken(baseUrl: String, service: Class<T>, tokenProvider: () -> String?): T {
+        val tokenClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor(logging)
+            .addInterceptor { chain ->
+                val token = tokenProvider()
+                val request = if (token != null) {
+                    chain.request().newBuilder()
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
+                chain.proceed(request)
+            }
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(tokenClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+            .create(service)
+    }
+
     fun <T> createNoConverter(baseUrl: String, service: Class<T>): T {
         return Retrofit.Builder()
             .baseUrl(baseUrl)

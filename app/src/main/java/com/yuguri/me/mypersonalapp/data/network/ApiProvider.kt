@@ -1,9 +1,18 @@
-﻿package com.yuguri.me.mypersonalapp.data.network
+package com.yuguri.me.mypersonalapp.data.network
 
 import com.yuguri.me.mypersonalapp.data.api.*
 import com.yuguri.me.mypersonalapp.data.model.*
 
 object ApiProvider {
+    @Volatile
+    private var currentToken: String? = null
+
+    fun setToken(token: String?) {
+        currentToken = token
+    }
+
+    fun getToken(): String? = currentToken
+
     private val tianapiRetrofit = RetrofitClient.create(
         "https://apis.tianapi.com/",
         MoodFeedApi::class.java
@@ -38,7 +47,7 @@ object ApiProvider {
     }
 
     val userApi: UserApi by lazy {
-        RetrofitClient.create("${API_KEYS.USER_BASE_URL}/", UserApi::class.java)
+        RetrofitClient.createWithToken("${API_KEYS.USER_BASE_URL}/", UserApi::class.java) { currentToken }
     }
 
     val amapApi: AmapApi by lazy {

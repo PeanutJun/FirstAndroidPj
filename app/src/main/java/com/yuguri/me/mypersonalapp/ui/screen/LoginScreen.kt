@@ -95,8 +95,10 @@ class LoginViewModel(
                     userPreferences.setUserId(user.userId)
                     userPreferences.setUserName(user.username)
                     userPreferences.setNickname(user.nickname.ifBlank { user.username })
+                    userPreferences.setToken(user.token)
                     userPreferences.setNewsViewCount(user.newsViewCount)
                     userPreferences.setNewsFavoriteCount(user.newsFavoriteCount)
+                    ApiProvider.setToken(user.token)
                     try {
                         val cityRes = userApi.getUserCityPreference(user.userId)
                         if (cityRes.code == 200 && cityRes.data != null) {

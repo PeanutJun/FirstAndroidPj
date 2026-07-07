@@ -359,6 +359,7 @@ data class UserData(
     val username: String = "",
     val nickname: String = "",
     val phone: String = "",
+    val token: String = "",
     val newsViewCount: Int = 0,
     val newsFavoriteCount: Int = 0
 )
