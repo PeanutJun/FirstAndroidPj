@@ -200,10 +200,14 @@ interface UserApi {
 
     @POST("sentence/category")
     suspend fun createCategory(@Body body: CreateCategoryRequest): CreateCategoryResponse
+
+    @POST("sentence/category/remove")
+    suspend fun removeCategory(@Body body: RemoveCategoryRequest): FavoriteSentenceResponse
 }
 
 data class LoginRequest(val username: String, val password: String)
 data class ProfileUpdateRequest(val userId: Int, val nickname: String, val phone: String)
+data class RemoveCategoryRequest(val id: Int, val userId: Int)
 
 data class CityPreferenceResponse(
     val code: Int = 0,

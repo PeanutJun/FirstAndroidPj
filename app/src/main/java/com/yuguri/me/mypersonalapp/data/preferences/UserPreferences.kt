@@ -60,6 +60,14 @@ class UserPreferences(private val context: Context) {
         }
     }
 
+    suspend fun setNewsViewCount(count: Int) {
+        context.dataStore.edit { it[NEWS_VIEW_COUNT] = count }
+    }
+
+    suspend fun setNewsFavoriteCount(count: Int) {
+        context.dataStore.edit { it[NEWS_FAVORITE_COUNT] = count }
+    }
+
     suspend fun clearAll() {
         context.dataStore.edit { it.clear() }
     }

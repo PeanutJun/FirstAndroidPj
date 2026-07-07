@@ -1,26 +1,70 @@
 package com.yuguri.me.mypersonalapp.ui.screen
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.*
-import androidx.lifecycle.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.yuguri.me.mypersonalapp.data.api.ProfileUpdateRequest
-import com.yuguri.me.mypersonalapp.data.model.*
+import com.yuguri.me.mypersonalapp.data.api.RemoveCategoryRequest
+import com.yuguri.me.mypersonalapp.data.model.CategoryData
+import com.yuguri.me.mypersonalapp.data.model.CreateCategoryRequest
+import com.yuguri.me.mypersonalapp.data.model.FavoriteSentenceData
+import com.yuguri.me.mypersonalapp.data.model.RemoveFavoriteRequest
 import com.yuguri.me.mypersonalapp.data.network.ApiProvider
 import com.yuguri.me.mypersonalapp.data.preferences.UserPreferences
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private val DarkBackground = Color(0xFF0B1220)
@@ -129,11 +173,23 @@ fun ProfileScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(cat.name, color = TextPrimary, fontSize = 15.sp)
-                            Icon(
-                                if (viewModel.selectedCatId == cat.id) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                contentDescription = null,
-                                tint = TextSecondary
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (cat.userId > 0) {
+                                    IconButton(
+                                        onClick = { viewModel.requestDeleteCategory(cat.id) },
+                                        modifier = Modifier.size(24.dp),
+                                        content = {
+                                            Icon(Icons.Default.Delete, contentDescription = "删除列表", tint = Color(0xFFF87171))
+                                        }
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    if (viewModel.selectedCatId == cat.id) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    tint = TextSecondary
+                                )
+                            }
                         }
                     }
 
@@ -300,7 +356,7 @@ fun ProfileScreen(navController: NavController) {
         )
     }
 
-    // 删除确认对话框
+    // 删除收藏确认对话框
     if (viewModel.showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.showDeleteDialog = false },
@@ -316,6 +372,29 @@ fun ProfileScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.showDeleteDialog = false }) {
+                    Text("取消", color = TextSecondary)
+                }
+            },
+            containerColor = Color(0xFF1E293B)
+        )
+    }
+
+    // 删除列表确认对话框
+    if (viewModel.showDeleteCategoryDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.showDeleteCategoryDialog = false },
+            title = { Text("确认删除列表", color = TextPrimary) },
+            text = { Text("确定要删除这个列表吗？列表中的所有收藏也会被删除。", color = TextSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmDeleteCategory(userId) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF87171))
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.showDeleteCategoryDialog = false }) {
                     Text("取消", color = TextSecondary)
                 }
             },
@@ -357,6 +436,8 @@ class ProfileViewModel(private val prefs: UserPreferences) : ViewModel() {
     var message by mutableStateOf("")
     var showDeleteDialog by mutableStateOf(false)
     var pendingDeleteId by mutableStateOf(0)
+    var showDeleteCategoryDialog by mutableStateOf(false)
+    var pendingDeleteCategoryId by mutableStateOf(0)
     var snackbarText by mutableStateOf("")
 
     fun loadProfile(userId: Int) {
@@ -445,6 +526,31 @@ class ProfileViewModel(private val prefs: UserPreferences) : ViewModel() {
                 if (res.code == 200) {
                     selectedCatFavs = selectedCatFavs.filter { it.id != pendingDeleteId }
                     snackbarText = "已删除"
+                    kotlinx.coroutines.delay(2000)
+                    snackbarText = ""
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun requestDeleteCategory(catId: Int) {
+        pendingDeleteCategoryId = catId
+        showDeleteCategoryDialog = true
+    }
+
+    fun confirmDeleteCategory(userId: Int) {
+        showDeleteCategoryDialog = false
+        viewModelScope.launch {
+            try {
+                val body = RemoveCategoryRequest(pendingDeleteCategoryId, userId)
+                val res = ApiProvider.userApi.removeCategory(body)
+                if (res.code == 200) {
+                    catList = catList.filter { it.id != pendingDeleteCategoryId }
+                    if (selectedCatId == pendingDeleteCategoryId) {
+                        selectedCatId = -1
+                        selectedCatFavs = emptyList()
+                    }
+                    snackbarText = "列表已删除"
                     kotlinx.coroutines.delay(2000)
                     snackbarText = ""
                 }

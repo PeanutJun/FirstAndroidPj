@@ -75,7 +75,7 @@ fun NewsScreen(navController: NavController) {
                             NewsCard(item,
                                 onClick = {
                                     item.url?.let { vm.openWeb(it) }
-                                    if (userId > 0) vm.incrementView(userId)
+                                    if (userId > 0) vm.incrementView(userId, prefs)
                                 },
                                 onTranslate = { vm.translateHeadline(item) }
                             )
@@ -203,12 +203,13 @@ class NewsViewModel : ViewModel() {
         }
     }
 
-    fun incrementView(userId: Int) {
+    fun incrementView(userId: Int, prefs: UserPreferences) {
         viewModelScope.launch { 
             try { 
                 withContext(Dispatchers.IO) {
                     ApiProvider.userApi.incrementNewsView(NewsViewRequest(userId))
                 }
+                prefs.incrementNewsView()
             } catch (e: Exception) { android.util.Log.e("NewsCrash", "incrementView: " + e.message.toString()) } 
         }
     }

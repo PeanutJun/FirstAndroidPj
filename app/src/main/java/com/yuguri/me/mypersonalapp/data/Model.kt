@@ -358,7 +358,9 @@ data class UserData(
     @SerializedName("id") val userId: Int = 0,
     val username: String = "",
     val nickname: String = "",
-    val phone: String = ""
+    val phone: String = "",
+    val newsViewCount: Int = 0,
+    val newsFavoriteCount: Int = 0
 )
 
 data class ProfileResponse(
@@ -421,7 +423,7 @@ data class CategoryListResponse(
 data class CategoryData(
     val id: Int = 0,
     val name: String = "",
-    val userId: Int = 0
+    @SerializedName("user_id") val userId: Int = 0
 )
 
 data class CreateCategoryRequest(

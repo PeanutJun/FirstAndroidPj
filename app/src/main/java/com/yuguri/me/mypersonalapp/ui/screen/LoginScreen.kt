@@ -1,19 +1,22 @@
 package com.yuguri.me.mypersonalapp.ui.screen
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -23,6 +26,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.yuguri.me.mypersonalapp.R
 import com.yuguri.me.mypersonalapp.data.api.LoginRequest
 import com.yuguri.me.mypersonalapp.data.network.ApiProvider
 import com.yuguri.me.mypersonalapp.data.preferences.UserPreferences
@@ -30,15 +34,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-// ========== Color Constants ==========
-private val DarkBackground = Color(0xFF0B1220)
-private val PrimaryColor = Color(0xFF22D3EE)
-private val TextPrimary = Color(0xFFF8FAFC)
-private val TextSecondary = Color(0x99F8FAFC)   // 0x99 ≈ 60% alpha
-private val InputBackground = Color(0x1FFFFFFF)  // subtle white
-private val InputBorder = Color(0x33F8FAFC)
-private val CardBackground = Color(0xB8141623)   // ≈ 0.72 alpha on #141623
-// ========== ViewModel ==========
+
+private val DarkBackground = Color(0xFF000000)
+private val InputBackground = Color(0x1FFFFFFF)
+private val InputBorder = Color(0x33FFFFFF)
+private val CardBackground = Color(0xB8141623)
+private val CardBorder = Color(0x22FFFFFF)
+private val OrangeButton = Color(0xFFE67E22)
+
 data class LoginUiState(
     val username: String = "",
     val password: String = "",
@@ -47,6 +50,7 @@ data class LoginUiState(
     val message: String = "",
     val isSuccess: Boolean = false
 )
+
 class LoginViewModel(
     private val userPreferences: UserPreferences
 ) : ViewModel() {
@@ -55,24 +59,27 @@ class LoginViewModel(
     private val _registerState = MutableStateFlow(LoginUiState())
     val registerState: StateFlow<LoginUiState> = _registerState.asStateFlow()
     private val userApi = ApiProvider.userApi
-    // ---- Login fields ----
+
     fun updateLoginUsername(value: String) {
         _loginState.value = _loginState.value.copy(username = value, message = "")
     }
+
     fun updateLoginPassword(value: String) {
         _loginState.value = _loginState.value.copy(password = value, message = "")
     }
-    // ---- Register fields ----
+
     fun updateRegisterUsername(value: String) {
         _registerState.value = _registerState.value.copy(username = value, message = "")
     }
+
     fun updateRegisterPassword(value: String) {
         _registerState.value = _registerState.value.copy(password = value, message = "")
     }
+
     fun updateRegisterPhone(value: String) {
         _registerState.value = _registerState.value.copy(phone = value, message = "")
     }
-    // ---- Login action ----
+
     fun handleLogin(onSuccess: () -> Unit) {
         val state = _loginState.value
         if (state.username.isBlank() || state.password.isBlank()) {
@@ -88,6 +95,8 @@ class LoginViewModel(
                     userPreferences.setUserId(user.userId)
                     userPreferences.setUserName(user.username)
                     userPreferences.setNickname(user.nickname.ifBlank { user.username })
+                    userPreferences.setNewsViewCount(user.newsViewCount)
+                    userPreferences.setNewsFavoriteCount(user.newsFavoriteCount)
                     try {
                         val cityRes = userApi.getUserCityPreference(user.userId)
                         if (cityRes.code == 200 && cityRes.data != null) {
@@ -111,7 +120,7 @@ class LoginViewModel(
             }
         }
     }
-    // ---- Register action ----
+
     fun handleRegister(switchToLogin: () -> Unit) {
         val state = _registerState.value
         if (state.username.isBlank() || state.password.isBlank() || state.phone.isBlank()) {
@@ -137,7 +146,6 @@ class LoginViewModel(
                         message = "注册成功！",
                         isSuccess = true
                     )
-                    // 清空表单并延迟切换
                     kotlinx.coroutines.delay(1500)
                     _registerState.value = LoginUiState()
                     switchToLogin()
@@ -155,6 +163,7 @@ class LoginViewModel(
             }
         }
     }
+
     class Factory(private val prefs: UserPreferences) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -162,7 +171,8 @@ class LoginViewModel(
         }
     }
 }
-// ========== Composable ==========
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
     val context = LocalContext.current
@@ -171,161 +181,437 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var isLogin by remember { mutableStateOf(true) }
     val loginState by vm.loginState.collectAsState()
     val registerState by vm.registerState.collectAsState()
+    var showSheet by remember { mutableStateOf(false) }
+    var showToast by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackground)
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.backgroundchatgpt),
+            contentDescription = "Login Background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 48.dp),
+                .padding(horizontal = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.weight(1f))
-            // ---- Logo + Title ----
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "🛡",
-                    fontSize = 64.sp
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "App Logo",
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(22.dp)),
+                    contentScale = ContentScale.Fit
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
                     text = "易生活",
-                    fontSize = 30.sp,
+                    fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 14.dp)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
                     text = "天气 & 新闻 & 汇率 & 汽车",
-                    fontSize = 14.sp,
-                    color = TextSecondary
+                    fontSize = 16.sp,
+                    color = Color(0xAAFFFFFF),
+                    modifier = Modifier.padding(top = 6.dp)
                 )
             }
+
             Spacer(modifier = Modifier.height(40.dp))
-            // ---- Card with Tab ----
+
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardBackground)
-                    .border(1.dp, InputBorder.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                    .padding(top = 16.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // ---- Tab Row ----
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(InputBackground)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                SocialButton(
+                    iconRes = R.drawable.pingguo,
+                    text = "Continue with Apple",
+                    backgroundColor = Color.White,
+                    textColor = Color.Black,
+                    onClick = {
+                        showToast = true
+                        scope.launch {
+                            kotlinx.coroutines.delay(2000)
+                            showToast = false
+                        }
+                    }
+                )
+
+                SocialButton(
+                    iconRes = R.drawable.google,
+                    text = "Continue with Google",
+                    backgroundColor = Color.White,
+                    textColor = Color.Black,
+                    onClick = {
+                        showToast = true
+                        scope.launch {
+                            kotlinx.coroutines.delay(2000)
+                            showToast = false
+                        }
+                    }
+                )
+
+                SocialButton(
+                    iconRes = null,
+                    text = "Continue with PhoneNumber",
+                    backgroundColor = OrangeButton,
+                    textColor = Color.White,
+                    iconText = "📞",
+                    onClick = { showSheet = true }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(80.dp))
+        }
+
+        if (showSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showSheet = false },
+                containerColor = Color(0xFF191C28),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            ) {
+                LoginBottomSheetContent(
+                    isLogin = isLogin,
+                    onSwitchTab = { isLogin = it },
+                    loginState = loginState,
+                    registerState = registerState,
+                    onUsernameChange = if (isLogin) vm::updateLoginUsername else vm::updateRegisterUsername,
+                    onPasswordChange = if (isLogin) vm::updateLoginPassword else vm::updateRegisterPassword,
+                    onPhoneChange = vm::updateRegisterPhone,
+                    onLogin = { vm.handleLogin(onLoginSuccess) },
+                    onRegister = { vm.handleRegister { isLogin = true } },
+                    onClose = { showSheet = false }
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showToast,
+            enter = slideInHorizontally(initialOffsetX = { -300 }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { 300 }) + fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 100.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Surface(
+                    color = Color(0xFF2D3748),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(horizontal = 40.dp)
                 ) {
-                    TabButton(
-                        text = "登录",
-                        selected = isLogin,
-                        onClick = { isLogin = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                    TabButton(
-                        text = "注册",
-                        selected = !isLogin,
-                        onClick = { isLogin = false },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                if (isLogin) {
-                    LoginForm(
-                        state = loginState,
-                        onUsernameChange = vm::updateLoginUsername,
-                        onPasswordChange = vm::updateLoginPassword,
-                        onLogin = { vm.handleLogin(onLoginSuccess) }
-                    )
-                } else {
-                    RegisterForm(
-                        state = registerState,
-                        onUsernameChange = vm::updateRegisterUsername,
-                        onPhoneChange = vm::updateRegisterPhone,
-                        onPasswordChange = vm::updateRegisterPassword,
-                        onRegister = { vm.handleRegister { isLogin = true } }
+                    Text(
+                        text = "敬请期待",
+                        fontSize = 16.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
-// ========== Reusable UI ==========
+
 @Composable
-private fun TabButton(
+private fun LoginBottomSheetContent(
+    isLogin: Boolean,
+    onSwitchTab: (Boolean) -> Unit,
+    loginState: LoginUiState,
+    registerState: LoginUiState,
+    onUsernameChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onLogin: () -> Unit,
+    onRegister: () -> Unit,
+    onClose: () -> Unit
+) {
+    val configuration = LocalConfiguration.current
+    val sheetHeight = remember { (configuration.screenHeightDp * 0.65f).dp }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(sheetHeight)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0x33FFFFFF))
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        ) {
+            TabItem(
+                text = "登录",
+                selected = isLogin,
+                onClick = { onSwitchTab(true) }
+            )
+            TabItem(
+                text = "注册",
+                selected = !isLogin,
+                onClick = { onSwitchTab(false) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (isLogin) {
+            AuthCard {
+                AuthTextField(
+                    value = loginState.username,
+                    onValueChange = onUsernameChange,
+                    placeholder = "请输入用户名"
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                AuthTextField(
+                    value = loginState.password,
+                    onValueChange = onPasswordChange,
+                    placeholder = "请输入密码",
+                    isPassword = true
+                )
+                if (loginState.message.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = loginState.message,
+                        fontSize = 14.sp,
+                        color = if (loginState.message.contains("成功")) Color(0xFF7DEFA1) else Color(0xFFFF6B6B)
+                    )
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+                AuthButton(
+                    text = "登  录",
+                    loading = loginState.loading,
+                    enabled = loginState.username.isNotBlank() && loginState.password.isNotBlank(),
+                    onClick = onLogin
+                )
+            }
+        } else {
+            AuthCard {
+                Text(
+                    text = "用户名",
+                    fontSize = 14.sp,
+                    color = Color(0x99FFFFFF),
+                    modifier = Modifier.padding(top = 18.dp, bottom = 8.dp)
+                )
+                AuthTextField(
+                    value = registerState.username,
+                    onValueChange = onUsernameChange,
+                    placeholder = "请设置用户名"
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = "手机号",
+                    fontSize = 14.sp,
+                    color = Color(0x99FFFFFF),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                AuthTextField(
+                    value = registerState.phone,
+                    onValueChange = { if (it.length <= 11) onPhoneChange(it) },
+                    placeholder = "请输入手机号",
+                    keyboardType = KeyboardType.Number
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = "密码",
+                    fontSize = 14.sp,
+                    color = Color(0x99FFFFFF),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                AuthTextField(
+                    value = registerState.password,
+                    onValueChange = onPasswordChange,
+                    placeholder = "请设置密码",
+                    isPassword = true
+                )
+                if (registerState.message.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = registerState.message,
+                        fontSize = 14.sp,
+                        color = if (registerState.message.contains("成功")) Color(0xFF7DEFA1) else Color(0xFFFF6B6B)
+                    )
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+                AuthButton(
+                    text = "注  册",
+                    loading = registerState.loading,
+                    enabled = registerState.username.isNotBlank() && registerState.phone.length == 11 && registerState.password.isNotBlank(),
+                    onClick = onRegister
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun SocialButton(
+    iconRes: Int?,
+    text: String,
+    backgroundColor: Color,
+    textColor: Color,
+    iconText: String = "",
+    onClick: () -> Unit = {}
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = backgroundColor,
+            contentColor = textColor,
+            disabledContainerColor = backgroundColor.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(26.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (iconRes != null) {
+                Image(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (iconText.isNotEmpty()) {
+                Text(text = iconText, fontSize = 20.sp)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = text,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = textColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun TabItem(
     text: String,
     selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .height(40.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) PrimaryColor else Color.Transparent)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
             .clickable { onClick() },
-        contentAlignment = Alignment.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = text,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (selected) DarkBackground else TextSecondary
+            fontSize = 20.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) Color.White else Color(0x80FFFFFF)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.5f)
+                .height(3.dp)
+                .padding(top = 8.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (selected) Color(0xE6FFFFFF) else Color.Transparent)
         )
     }
 }
+
+@Composable
+private fun AuthCard(
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(CardBackground)
+                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+        ) {
+            content()
+        }
+    }
+}
+
 @Composable
 private fun AuthTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
     placeholder: String,
     keyboardType: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            color = TextSecondary,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = {
-                Text(placeholder, color = TextSecondary.copy(alpha = 0.5f))
-            },
-            singleLine = true,
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary,
-                cursorColor = PrimaryColor,
-                focusedBorderColor = PrimaryColor,
-                unfocusedBorderColor = InputBorder,
-                focusedContainerColor = InputBackground,
-                unfocusedContainerColor = InputBackground
-            ),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-        )
-    }
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = {
+            Text(placeholder, color = Color(0x80FFFFFF))
+        },
+        singleLine = true,
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = Color.White,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedContainerColor = InputBackground,
+            unfocusedContainerColor = InputBackground,
+            disabledContainerColor = InputBackground
+        ),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .border(1.dp, InputBorder, RoundedCornerShape(14.dp))
+    )
 }
+
 @Composable
 private fun AuthButton(
     text: String,
@@ -337,111 +623,29 @@ private fun AuthButton(
         onClick = onClick,
         enabled = enabled && !loading,
         colors = ButtonDefaults.buttonColors(
-            containerColor = PrimaryColor,
-            contentColor = DarkBackground,
-            disabledContainerColor = PrimaryColor.copy(alpha = 0.3f),
-            disabledContentColor = DarkBackground.copy(alpha = 0.4f)
+            containerColor = Color(0x33FFFFFF),
+            contentColor = Color.White,
+            disabledContainerColor = Color(0x1AFFFFFF),
+            disabledContentColor = Color(0x66FFFFFF)
         ),
         shape = RoundedCornerShape(25.dp),
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
+            .border(1.dp, Color(0x4DFFFFFF), RoundedCornerShape(25.dp))
     ) {
         if (loading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(22.dp),
-                color = DarkBackground,
+                color = Color.White,
                 strokeWidth = 2.dp
             )
         } else {
             Text(
                 text = text,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Medium
             )
         }
     }
-}
-@Composable
-private fun LoginForm(
-    state: LoginUiState,
-    onUsernameChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onLogin: () -> Unit
-) {
-    AuthTextField(
-        value = state.username,
-        onValueChange = onUsernameChange,
-        label = "用户名",
-        placeholder = "请输入用户名"
-    )
-    Spacer(modifier = Modifier.height(16.dp))
-    AuthTextField(
-        value = state.password,
-        onValueChange = onPasswordChange,
-        label = "密码",
-        placeholder = "请输入密码",
-        isPassword = true
-    )
-    if (state.message.isNotBlank()) {
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = state.message,
-            fontSize = 13.sp,
-            color = if (state.isSuccess) Color(0xFF7DEFA1) else Color(0xFFFF6B6B)
-        )
-    }
-    Spacer(modifier = Modifier.height(24.dp))
-    AuthButton(
-        text = "登 录",
-        loading = state.loading,
-        enabled = state.username.isNotBlank() && state.password.isNotBlank(),
-        onClick = onLogin
-    )
-}
-@Composable
-private fun RegisterForm(
-    state: LoginUiState,
-    onUsernameChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onRegister: () -> Unit
-) {
-    AuthTextField(
-        value = state.username,
-        onValueChange = onUsernameChange,
-        label = "用户名",
-        placeholder = "请输入用户名"
-    )
-    Spacer(modifier = Modifier.height(16.dp))
-    AuthTextField(
-        value = state.phone,
-        onValueChange = { if (it.length <= 11) onPhoneChange(it) },
-        label = "手机号",
-        placeholder = "请输入手机号",
-        keyboardType = KeyboardType.Number
-    )
-    Spacer(modifier = Modifier.height(16.dp))
-    AuthTextField(
-        value = state.password,
-        onValueChange = onPasswordChange,
-        label = "密码",
-        placeholder = "请设置密码",
-        isPassword = true
-    )
-    if (state.message.isNotBlank()) {
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = state.message,
-            fontSize = 13.sp,
-            color = if (state.isSuccess || state.message.contains("成功")) Color(0xFF7DEFA1) else Color(0xFFFF6B6B)
-        )
-    }
-    Spacer(modifier = Modifier.height(24.dp))
-    AuthButton(
-        text = "注 册",
-        loading = state.loading,
-        enabled = state.username.isNotBlank() && state.phone.length == 11 && state.password.isNotBlank(),
-        onClick = onRegister
-    )
 }
