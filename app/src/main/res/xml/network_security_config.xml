@@ -3,7 +3,7 @@
 
     <domain-config cleartextTrafficPermitted="true">
 
-        <domain includeSubdomains="true">165.154.1.210</domain>
+        <domain includeSubdomains="true">10.193.95.80</domain>
 
         <!-- 模拟器本地调试 -->
         <domain includeSubdomains="true">10.0.2.2</domain>
