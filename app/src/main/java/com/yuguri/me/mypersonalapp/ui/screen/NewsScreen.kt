@@ -1,10 +1,7 @@
-﻿package com.yuguri.me.mypersonalapp.ui.screen
+package com.yuguri.me.mypersonalapp.ui.screen
 
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -21,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -45,6 +43,7 @@ fun NewsScreen(navController: NavController) {
     val prefs = remember { UserPreferences(context) }
     val vm: NewsViewModel = viewModel()
     val userId by prefs.userId.collectAsState(initial = 0)
+    var showTranslateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(vm.selectedIndex) {
         vm.loadNews(prefs)
@@ -81,8 +80,10 @@ fun NewsScreen(navController: NavController) {
                                 expandedDesc = vm.expandedItems.contains(index),
                                 onToggleExpand = { vm.toggleExpand(index) },
                                 translating = vm.translatingIndex == index,
-                                translateResult = if (vm.translateIndex == index) vm.translateResult else null,
-                                onTranslate = { vm.translateHeadline(item, index) },
+                                onTranslate = {
+                                    vm.translateHeadline(item, index)
+                                    showTranslateDialog = true
+                                },
                                 onClick = {
                                     item.url?.let { vm.openWeb(it) }
                                     if (userId > 0) vm.incrementView(userId, prefs)
@@ -102,6 +103,46 @@ fun NewsScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    // 翻译结果弹窗
+    if (showTranslateDialog && vm.translateResult.isNotBlank() && vm.translateIndex >= 0) {
+        val item = vm.newsList.getOrNull(vm.translateIndex)
+        AlertDialog(
+            onDismissRequest = {
+                showTranslateDialog = false
+                vm.clearTranslate()
+            },
+            containerColor = Color(0xFF1E293B),
+            title = {
+                Text("翻译结果", fontWeight = FontWeight.Bold, color = TxtMain)
+            },
+            text = {
+                Column {
+                    if (item != null && !item.title.isNullOrBlank()) {
+                        Text("原文标题：", fontSize = 12.sp, color = TxtSub, fontWeight = FontWeight.Medium)
+                        Text(item.title, fontSize = 13.sp, color = TxtMain, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                    if (item != null && !item.description.isNullOrBlank()) {
+                        Text("原文描述：", fontSize = 12.sp, color = TxtSub, fontWeight = FontWeight.Medium)
+                        Text(item.description, fontSize = 13.sp, color = TxtMain, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                    HorizontalDivider(color = Color(0x33FFFFFF), modifier = Modifier.padding(vertical = 4.dp))
+                    Text("译文：", fontSize = 12.sp, color = AccentGreen, fontWeight = FontWeight.Medium)
+                    Text(vm.translateResult, fontSize = 14.sp, color = Color(0xFFE2E8F0), modifier = Modifier.padding(top = 4.dp))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTranslateDialog = false
+                    vm.clearTranslate()
+                }) {
+                    Text("关闭", color = Primary)
+                }
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            modifier = Modifier.padding(24.dp)
+        )
     }
 
     if (vm.showWebView) {
@@ -134,7 +175,6 @@ private fun NewsCard(
     expandedDesc: Boolean,
     onToggleExpand: () -> Unit,
     translating: Boolean,
-    translateResult: String?,
     onTranslate: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -164,22 +204,6 @@ private fun NewsCard(
                             if (expandedDesc) "收起" else "展开",
                             fontSize = 12.sp,
                             color = Primary
-                        )
-                    }
-                }
-
-                // 翻译结果
-                AnimatedVisibility(
-                    visible = translateResult != null,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    if (translateResult != null) {
-                        Text(
-                            translateResult,
-                            fontSize = 13.sp,
-                            color = AccentGreen,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                         )
                     }
                 }
@@ -221,13 +245,19 @@ class NewsViewModel : ViewModel() {
     var showWebView by mutableStateOf(false)
     var webViewUrl by mutableStateOf("")
 
-    // 展开状态：记录每个展开的 item 索引
+    // 展开状态
     var expandedItems by mutableStateOf(setOf<Int>())
 
     // 翻译状态
     var translateResult by mutableStateOf("")
     var translateIndex by mutableStateOf(-1)
     var translatingIndex by mutableStateOf(-1)
+
+    fun clearTranslate() {
+        translateResult = ""
+        translateIndex = -1
+        translatingIndex = -1
+    }
 
     fun toggleExpand(index: Int) {
         expandedItems = if (expandedItems.contains(index)) {
@@ -242,9 +272,7 @@ class NewsViewModel : ViewModel() {
         currentPage = 1
         newsList = emptyList()
         expandedItems = emptySet()
-        translateResult = ""
-        translateIndex = -1
-        translatingIndex = -1
+        clearTranslate()
         loadNews(prefs)
     }
 
@@ -283,7 +311,10 @@ class NewsViewModel : ViewModel() {
             translateIndex = -1
             translateResult = ""
             try {
-                val textToTranslate = listOfNotNull(item.title?.takeIf { it.isNotBlank() }, item.description?.takeIf { it.isNotBlank() }).joinToString("\n\n")
+                val textToTranslate = listOfNotNull(
+                    item.title?.takeIf { it.isNotBlank() },
+                    item.description?.takeIf { it.isNotBlank() }
+                ).joinToString("\n\n")
                 if (textToTranslate.isBlank()) {
                     translateResult = "没有可翻译的内容"
                     translateIndex = index
@@ -300,10 +331,11 @@ class NewsViewModel : ViewModel() {
                         )
                     )
                 }
-                translateResult = response.trans_result.firstOrNull()?.dst ?: "翻译失败"
+                translateResult = response.trans_result.joinToString("\n\n---\n\n") { it.dst.ifBlank { it.src } }
+                        .ifEmpty { "翻译失败" }
                 translateIndex = index
             } catch (e: Exception) {
-                translateResult = "翻译失败: ${e.message}"
+                translateResult = "翻译失败: " + (e.message ?: "未知错误")
                 translateIndex = index
                 android.util.Log.e("NewsCrash", "translateHeadline: " + e.message.toString())
             }
