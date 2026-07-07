@@ -207,7 +207,7 @@ interface UserApi {
 }
 
 data class LoginRequest(val username: String, val password: String)
-data class ProfileUpdateRequest(val userId: Int, val nickname: String, val phone: String)
+data class ProfileUpdateRequest(val userId: Int, val nickname: String?, val phone: String)
 data class RemoveCategoryRequest(val id: Int, val userId: Int)
 
 data class CityPreferenceResponse(
