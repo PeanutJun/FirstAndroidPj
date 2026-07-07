@@ -357,7 +357,7 @@ data class UserResponse(
 data class UserData(
     @SerializedName("id") val userId: Int = 0,
     val username: String = "",
-    val nickname: String = "",
+    val nickname: String? = null,
     val phone: String = "",
     val token: String = "",
     val newsViewCount: Int = 0,
