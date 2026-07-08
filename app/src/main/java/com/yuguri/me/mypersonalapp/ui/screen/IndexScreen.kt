@@ -167,10 +167,10 @@ private fun HistorySection(vm: IndexViewModel) {
 private fun PhoneSearchSection(vm: IndexViewModel) {
     Card(colors = CardDefaults.cardColors(containerColor = CardBackground), shape = RoundedCornerShape(14.dp)) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text("\uD83D\uDCDE \u5168\u56FD\u5E38\u7528\u7535\u8BDD\u67E5\u8BE2", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("全国常用电话查询", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(value = vm.phoneQuery, onValueChange = { vm.phoneQuery = it },
-                label = { Text("\u8F93\u5165\u53F7\u7801\u540D\u79F0...") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text("请输入你要查询的电话(例如淘宝)...") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = PrimaryColor, cursorColor = PrimaryColor),
                 trailingIcon = { IconButton(onClick = { vm.searchPhone() }) { Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryColor) } })
             if (vm.phoneLoading) CircularProgressIndicator(color = PrimaryColor, modifier = Modifier.padding(top = 8.dp).size(24.dp))
